@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Examinar — Exam System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============ TOP BAR ============ -->
+<header class="topbar">
+  <div class="topbar__brand">
+    <span class="topbar__mark">Ex</span>
+    <span class="topbar__name">Examinar</span>
+  </div>
+  <nav class="topbar__nav" id="mainNav">
+    <button class="navtab is-active" data-view="admin">Question Bank</button>
+    <button class="navtab" data-view="stats">Statistics</button>
+  </nav>
+  <div class="topbar__controls">
+    <button id="langToggle" class="iconbtn" title="Toggle Arabic / RTL">EN / ع</button>
+    <button id="themeToggle" class="iconbtn" title="Toggle theme">☾</button>
+  </div>
+</header>
+
+<main id="app">
+
+  <!-- ============ ADMIN / QUESTION BANK VIEW ============ -->
+  <section id="view-admin" class="view is-active">
+    <div class="admin-grid">
+
+      <!-- Question Form -->
+      <div class="panel panel--form">
+        <div class="panel__head">
+          <h2 id="formTitle">New Question</h2>
+          <span class="eyebrow">Author</span>
+        </div>
+
+        <form id="questionForm" class="qform" autocomplete="off">
+          <input type="hidden" id="questionId">
+
+          <label class="field">
+            <span>Question text</span>
+            <textarea id="qText" rows="2" required placeholder="Type the question…"></textarea>
+          </label>
+
+          <div class="field-row">
+            <label class="field">
+              <span>Category / Subject</span>
+              <input type="text" id="qCategory" list="categoryOptions" placeholder="Choose an existing one or type a new one" required>
+              <datalist id="categoryOptions"></datalist>
+            </label>
+            <label class="field">
+              <span>Difficulty</span>
+              <select id="qDifficulty">
+                <option value="Easy">Easy</option>
+                <option value="Medium" selected>Medium</option>
+                <option value="Hard">Hard</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label class="field">
+              <span>Timer (seconds)</span>
+              <input type="number" id="qTimer" min="5" max="600" value="30" required>
+            </label>
+            <label class="field">
+              <span>Image URL (optional)</span>
+              <input type="text" id="qImage" placeholder="https://…">
+            </label>
+          </div>
+
+          <div class="field">
+            <span>Answer choices — tap ● to mark correct</span>
+            <div id="choicesList" class="choices-list"></div>
+            <button type="button" id="addChoiceBtn" class="btn btn--ghost btn--sm">+ Add choice</button>
+          </div>
+
+          <label class="field">
+            <span>Explanation (shown in review, optional)</span>
+            <textarea id="qExplanation" rows="2" placeholder="Why is this the correct answer?"></textarea>
+          </label>
+
+          <div class="qform__actions">
+            <button type="submit" id="saveQuestionBtn" class="btn btn--primary">Add Question</button>
+            <button type="button" id="cancelEditBtn" class="btn btn--ghost" hidden>Cancel</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Question List -->
+      <div class="panel panel--list">
+        <div class="panel__head">
+          <h2>Bank <span id="questionCount" class="badge">0</span></h2>
+          <span class="eyebrow">Manage</span>
+        </div>
+
+        <div class="bank-toolbar">
+          <input type="search" id="searchBox" placeholder="Search question, category, difficulty…" class="search-input">
+          <div class="bank-toolbar__row">
+            <select id="filterCategory" class="select-sm"><option value="">All categories</option></select>
+            <select id="filterDifficulty" class="select-sm">
+              <option value="">All difficulties</option>
+              <option value="Easy">Easy</option>
+              <option value="Medium">Medium</option>
+              <option value="Hard">Hard</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="questionListEl" class="question-list" role="list"></div>
+
+        <div class="bank-actions">
+          <label class="btn btn--ghost btn--sm file-btn">
+            Import JSON
+            <input type="file" id="importFile" accept=".json" hidden>
+          </label>
+          <button id="exportBtn" class="btn btn--ghost btn--sm">Export JSON</button>
+          <button id="resetDataBtn" class="btn btn--ghost btn--sm btn--danger-text">Reset all data</button>
+        </div>
+      </div>
+
+      <!-- Exam Launch -->
+      <div class="panel panel--launch">
+        <div class="panel__head">
+          <h2>Start an Exam</h2>
+          <span class="eyebrow">Session</span>
+        </div>
+
+        <div class="launch-options">
+          <label class="field">
+            <span>Number of questions</span>
+            <input type="number" id="examCount" min="1" value="10">
+          </label>
+          <label class="field">
+            <span>Category filter</span>
+            <select id="examCategory"><option value="">All categories</option></select>
+          </label>
+          <label class="field">
+            <span>Mode</span>
+            <select id="examMode">
+              <option value="exam">Timed Exam</option>
+              <option value="practice">Practice (no timer lock)</option>
+              <option value="incorrect">Review-only: past incorrect</option>
+            </select>
+          </label>
+          <label class="check-row">
+            <input type="checkbox" id="soundToggle" checked>
+            <span>Sound effects</span>
+          </label>
+        </div>
+
+        <button id="startExamBtn" class="btn btn--primary btn--block" disabled>Start Exam</button>
+        <p id="startHint" class="hint">Add at least one question to begin.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ EXAM VIEW ============ -->
+  <section id="view-exam" class="view">
+    <div class="exam-shell">
+
+      <div class="exam-sidebar">
+        <div class="stat-block"><span class="stat-label">Answered</span><span id="statAnswered" class="stat-value">0</span></div>
+        <div class="stat-block"><span class="stat-label">Remaining</span><span id="statRemaining" class="stat-value">0</span></div>
+        <div class="stat-block"><span class="stat-label">Score</span><span id="statScore" class="stat-value">0</span></div>
+        <div class="stat-block"><span class="stat-label">Percent</span><span id="statPercent" class="stat-value">0%</span></div>
+        <div class="stat-block"><span class="stat-label">Time used</span><span id="statTime" class="stat-value">0:00</span></div>
+        <div class="stat-block stat-block--flags"><span class="stat-label">Focus warnings</span><span id="statWarnings" class="stat-value">0</span></div>
+      </div>
+
+      <div class="exam-paper">
+        <div class="exam-paper__top">
+          <div class="qcounter">Question <span id="qIndex">1</span> of <span id="qTotal">10</span></div>
+          <div class="exam-controls">
+            <button id="pauseBtn" class="iconbtn" title="Pause (Esc)">⏸</button>
+            <button id="fullscreenBtn" class="iconbtn" title="Fullscreen">⛶</button>
+            <button id="flagBtn" class="iconbtn" title="Flag for review">⚑</button>
+            <button id="quitBtn" class="iconbtn iconbtn--danger" title="Quit exam">✕</button>
+          </div>
+        </div>
+
+        <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
+
+        <div class="exam-paper__body">
+          <div class="timer-clock" id="timerClock">
+            <svg viewBox="0 0 100 100" class="timer-clock__svg">
+              <circle cx="50" cy="50" r="44" class="timer-clock__track"></circle>
+              <circle cx="50" cy="50" r="44" class="timer-clock__arc" id="timerArc"></circle>
+              <line x1="50" y1="8" x2="50" y2="16" class="timer-clock__tick"></line>
+              <line x1="92" y1="50" x2="84" y2="50" class="timer-clock__tick"></line>
+              <line x1="50" y1="92" x2="50" y2="84" class="timer-clock__tick"></line>
+              <line x1="8" y1="50" x2="16" y2="50" class="timer-clock__tick"></line>
+            </svg>
+            <div class="timer-clock__value" id="timerValue">30</div>
+          </div>
+
+          <div class="question-body">
+            <span id="qMeta" class="qmeta"></span>
+            <h3 id="qText" class="question-text"></h3>
+            <img id="qImage" class="question-image" hidden>
+            <div id="choicesArea" class="choices-area" role="list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pause Overlay -->
+    <div id="pauseOverlay" class="overlay" hidden>
+      <div class="overlay__card">
+        <h2>Exam Paused</h2>
+        <p>Your timer is frozen. Resume when you're ready.</p>
+        <button id="resumeBtn" class="btn btn--primary">Resume Exam</button>
+      </div>
+    </div>
+
+    <!-- Focus Warning Overlay -->
+    <div id="focusWarning" class="overlay overlay--warn" hidden>
+      <div class="overlay__card">
+        <h2>Stay on this tab</h2>
+        <p>Switching tabs or windows during an exam is logged.</p>
+        <button id="dismissWarningBtn" class="btn btn--primary">Continue Exam</button>
+      </div>
+    </div>
+
+    <!-- Fullscreen exit warning -->
+    <div id="fsWarning" class="overlay overlay--warn" hidden>
+      <div class="overlay__card">
+        <h2>Fullscreen exited</h2>
+        <p>Return to fullscreen to keep your exam environment secure.</p>
+        <button id="reenterFsBtn" class="btn btn--primary">Re-enter Fullscreen</button>
+        <button id="ignoreFsBtn" class="btn btn--ghost">Continue anyway</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ RESULTS VIEW ============ -->
+  <section id="view-results" class="view">
+    <div class="results-shell">
+      <div class="results-card">
+        <div id="gradeStamp" class="grade-stamp">Excellent</div>
+        <div class="results-chart">
+          <svg viewBox="0 0 120 120" class="score-ring">
+            <circle cx="60" cy="60" r="52" class="score-ring__track"></circle>
+            <circle cx="60" cy="60" r="52" class="score-ring__arc" id="scoreArc"></circle>
+          </svg>
+          <div class="score-ring__label">
+            <span id="scorePercent">0%</span>
+            <span>Final Score</span>
+          </div>
+        </div>
+
+        <div class="results-grid">
+          <div><span class="stat-label">Total Questions</span><span id="rTotal" class="stat-value">0</span></div>
+          <div><span class="stat-label">Correct</span><span id="rCorrect" class="stat-value stat--good">0</span></div>
+          <div><span class="stat-label">Wrong</span><span id="rWrong" class="stat-value stat--bad">0</span></div>
+          <div><span class="stat-label">Unanswered</span><span id="rUnanswered" class="stat-value">0</span></div>
+          <div><span class="stat-label">Total Time</span><span id="rTime" class="stat-value">0:00</span></div>
+          <div><span class="stat-label">Avg / Question</span><span id="rAvg" class="stat-value">0.0s</span></div>
+        </div>
+
+        <div class="results-actions">
+          <button id="reviewBtn" class="btn btn--primary">Review Answers</button>
+          <button id="restartBtn" class="btn btn--ghost">Restart Exam</button>
+          <button id="printBtn" class="btn btn--ghost">Print Results</button>
+          <button id="backToBankBtn" class="btn btn--ghost">Back to Bank</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ REVIEW VIEW ============ -->
+  <section id="view-review" class="view">
+    <div class="review-shell">
+      <div class="review-head">
+        <h2>Answer Review</h2>
+        <div>
+          <button id="reviewIncorrectOnlyBtn" class="btn btn--ghost btn--sm">Show incorrect only</button>
+          <button id="backToResultsBtn" class="btn btn--ghost btn--sm">Back to Results</button>
+        </div>
+      </div>
+      <div id="reviewList" class="review-list"></div>
+    </div>
+  </section>
+
+  <!-- ============ STATS VIEW ============ -->
+  <section id="view-stats" class="view">
+    <div class="stats-shell">
+      <div class="panel">
+        <div class="panel__head"><h2>All-Time Statistics</h2><span class="eyebrow">Records</span></div>
+        <div class="results-grid">
+          <div><span class="stat-label">Highest Score</span><span id="sHighest" class="stat-value">—</span></div>
+          <div><span class="stat-label">Last Score</span><span id="sLast" class="stat-value">—</span></div>
+          <div><span class="stat-label">Average Score</span><span id="sAverage" class="stat-value">—</span></div>
+          <div><span class="stat-label">Total Attempts</span><span id="sAttempts" class="stat-value">0</span></div>
+          <div><span class="stat-label">Best Percentage</span><span id="sBestPct" class="stat-value">—</span></div>
+          <div><span class="stat-label">Best Time</span><span id="sBestTime" class="stat-value">—</span></div>
+          <div><span class="stat-label">Last Attempt</span><span id="sLastDate" class="stat-value">—</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel__head"><h2>History</h2><span class="eyebrow">Attempts</span></div>
+        <div id="historyList" class="history-list"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="script.js"></script>
+</body>
+</html>
