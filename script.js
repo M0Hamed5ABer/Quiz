@@ -8,8 +8,7 @@
      3. QuestionBank
      4. StatsStore
      5. ExamSession
-     6. i18n
-     7. App (UI controller / event wiring)
+     6. App (UI controller / event wiring)
    ========================================================================== */
 
 /* ==========================================================================
@@ -350,28 +349,13 @@ class ExamSession{
 }
 
 /* ==========================================================================
-   6. I18N — minimal English / Arabic dictionary for RTL support
-   ========================================================================== */
-const I18N = {
-  en: {
-    bank: 'Question Bank', stats: 'Statistics', newQuestion: 'New Question', editQuestion: 'Edit Question',
-    startExam: 'Start Exam', addQuestion: 'Add Question', saveChanges: 'Save Changes'
-  },
-  ar: {
-    bank: 'بنك الأسئلة', stats: 'الإحصائيات', newQuestion: 'سؤال جديد', editQuestion: 'تعديل السؤال',
-    startExam: 'ابدأ الامتحان', addQuestion: 'إضافة سؤال', saveChanges: 'حفظ التعديلات'
-  }
-};
-
-/* ==========================================================================
-   7. APP — UI controller: DOM wiring, view routing, rendering
+   6. APP — UI controller: DOM wiring, view routing, rendering
    ========================================================================== */
 class App{
   constructor(){
     this.bank = new QuestionBank();
     this.stats = new StatsStore();
     this.session = null;
-    this.lang = 'en';
     this.editingChoices = []; // working array while the question form is open
     this.reviewIncorrectOnly = false;
 
@@ -400,6 +384,10 @@ class App{
     document.querySelectorAll('.view').forEach(v => v.classList.remove('is-active'));
     this.$(`view-${name}`).classList.add('is-active');
     this.navTabs.forEach(t => t.classList.toggle('is-active', t.dataset.view === name));
+    // Anti-cheat (copy/cut/context-menu/selection lockdown) only applies
+    // while the live exam screen is showing — every other screen (bank,
+    // results, review, stats) behaves like a normal page.
+    document.body.classList.toggle('is-exam-mode', name === 'exam');
   }
 
   /* ---------------- Global events (theme, lang, nav) ---------------- */
@@ -416,22 +404,18 @@ class App{
       Storage.set(STORAGE_KEYS.SETTINGS, { ...Storage.get(STORAGE_KEYS.SETTINGS, {}), light: isLight });
     });
 
-    this.$('langToggle').addEventListener('click', () => {
-      this.lang = this.lang === 'en' ? 'ar' : 'en';
-      const html = document.documentElement;
-      html.dir = this.lang === 'ar' ? 'rtl' : 'ltr';
-      html.lang = this.lang;
-      this.toast(this.lang === 'ar' ? 'تم تفعيل الوضع من اليمين لليسار' : 'Switched to left-to-right layout');
-    });
-
-    // Anti-cheat: block context menu, selection, clipboard, drag globally
-    document.addEventListener('contextmenu', e => e.preventDefault());
-    document.addEventListener('copy', e => e.preventDefault());
-    document.addEventListener('cut', e => e.preventDefault());
+    // Anti-cheat: block context menu, clipboard, drag — but ONLY while an
+    // exam is actually in progress. Outside the exam (e.g. the question
+    // bank's add/edit form) copy/cut/paste/selection work normally so
+    // authors can build questions from pasted text.
+    document.addEventListener('contextmenu', e => { if (this.isExamActive()) e.preventDefault(); });
+    document.addEventListener('copy', e => { if (this.isExamActive()) e.preventDefault(); });
+    document.addEventListener('cut', e => { if (this.isExamActive()) e.preventDefault(); });
     document.addEventListener("paste", (e) => {     if (!this.isExamActive()) return;      const tag = e.target.tagName;     if (tag === "INPUT" || tag === "TEXTAREA") return;      e.preventDefault(); });
-    document.addEventListener('dragstart', e => e.preventDefault());
+    document.addEventListener('dragstart', e => { if (this.isExamActive()) e.preventDefault(); });
     document.addEventListener('selectstart', e => {
-      // still allow selection inside editable inputs/textareas
+      if (!this.isExamActive()) return;
+      // still allow selection inside editable inputs/textareas during an exam
       const tag = e.target.tagName;
       if (tag !== 'INPUT' && tag !== 'TEXTAREA') e.preventDefault();
     });
@@ -784,9 +768,12 @@ class App{
     this.$('qIndex').textContent = this.session.index + 1;
     this.$('qTotal').textContent = this.session.total();
     this.$('qMeta').textContent = `${q.category || 'General'} · ${q.difficulty}`;
-    this.$('qText').textContent = q.text;
+    // NOTE: the exam question heading uses its own id (examQText) because
+    // the admin question-form textarea also uses "qText" — duplicate DOM
+    // ids caused getElementById to always return the (hidden) form field.
+    this.$('examQText').textContent = q.text;
 
-    const img = this.$('qImage');
+    const img = this.$('examQImage');
     if (q.image){ img.src = q.image; img.hidden = false; } else { img.hidden = true; }
 
     const area = this.$('choicesArea');
@@ -959,7 +946,7 @@ class App{
   }
 
   launchConfetti(){
-    const colors = ['#e8b04b', '#4caf7d', '#e2555c', '#8ab4f8'];
+    const colors = ['#6fae9d', '#6fae7d', '#d08774', '#9ab0c9'];
     for (let i = 0; i < 60; i++){
       const el = document.createElement('div');
       el.className = 'confetti';
